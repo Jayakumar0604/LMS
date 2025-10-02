@@ -24,8 +24,26 @@ const addNewCourse = async (req, res) => {
 
 const getAllCourses = async (req, res) => {
   try {
-    const coursesList = await Course.find({});
+    console.log("getAllCourses - req.user:", req.user);
+    console.log("getAllCourses - Authorization header:", req.headers.authorization);
 
+    // Check if user is authenticated
+    if (!req.user || !req.user._id) {
+      // Temporary fallback for debugging - get all courses
+      console.warn("User not authenticated, returning all courses (DEBUG MODE)");
+      const coursesList = await Course.find({});
+      return res.status(200).json({
+        success: true,
+        data: coursesList,
+        debug: "No authentication - showing all courses"
+      });
+    }
+
+    // Filter courses by current instructor's ID
+    const coursesList = await Course.find({ instructorId: req.user._id });
+
+    console.log(`Found ${coursesList.length} courses for instructor ${req.user._id}`);
+    
     res.status(200).json({
       success: true,
       data: coursesList,
@@ -42,7 +60,11 @@ const getAllCourses = async (req, res) => {
 const getCourseDetailsByID = async (req, res) => {
   try {
     const { id } = req.params;
-    const courseDetails = await Course.findById(id);
+    // Ensure instructor can only access their own courses
+    const courseDetails = await Course.findOne({ 
+      _id: id, 
+      instructorId: req.user._id 
+    });
 
     if (!courseDetails) {
       return res.status(404).json({
@@ -69,8 +91,9 @@ const updateCourseByID = async (req, res) => {
     const { id } = req.params;
     const updatedCourseData = req.body;
 
-    const updatedCourse = await Course.findByIdAndUpdate(
-      id,
+    // Ensure instructor can only update their own courses
+    const updatedCourse = await Course.findOneAndUpdate(
+      { _id: id, instructorId: req.user._id },
       updatedCourseData,
       { new: true }
     );

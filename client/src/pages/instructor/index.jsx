@@ -6,7 +6,7 @@ import { AuthContext } from "@/context/auth-context";
 import { InstructorContext } from "@/context/instructor-context";
 import { fetchInstructorCourseListService } from "@/services";
 import { BarChart, Book, LogOut } from "lucide-react";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState, useCallback } from "react";
 
 function InstructorDashboardpage() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -14,14 +14,34 @@ function InstructorDashboardpage() {
   const { instructorCoursesList, setInstructorCoursesList } =
     useContext(InstructorContext);
 
-  async function fetchAllCourses() {
-    const response = await fetchInstructorCourseListService();
-    if (response?.success) setInstructorCoursesList(response?.data);
-  }
+  const fetchAllCourses = useCallback(async () => {
+    try {
+      const response = await fetchInstructorCourseListService();
+      console.log("Instructor courses response:", response);
+      
+      if (response?.success) {
+        setInstructorCoursesList(response?.data);
+        console.log("Set courses list:", response?.data);
+      } else {
+        console.error("Failed to fetch courses:", response?.message);
+        setInstructorCoursesList([]);
+      }
+    } catch (error) {
+      console.error("Error fetching courses:", error);
+      setInstructorCoursesList([]);
+    }
+  }, [setInstructorCoursesList]);
 
   useEffect(() => {
     fetchAllCourses();
-  }, []);
+  }, [fetchAllCourses]);
+
+  // Refresh courses when tab becomes active
+  useEffect(() => {
+    if (activeTab === "dashboard" || activeTab === "courses") {
+      fetchAllCourses();
+    }
+  }, [activeTab, fetchAllCourses]);
 
   const menuItems = [
     {
@@ -80,7 +100,7 @@ function InstructorDashboardpage() {
           <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             {menuItems.map((menuItem) => (
-              <TabsContent value={menuItem.value}>
+              <TabsContent key={menuItem.value} value={menuItem.value}>
                 {menuItem.component !== null ? menuItem.component : null}
               </TabsContent>
             ))}

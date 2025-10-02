@@ -11,6 +11,8 @@ import { IndianRupee, Users } from "lucide-react";
 
 function InstructorDashboard({ listOfCourses }) {
   console.log(listOfCourses, "list of the course")
+  console.log("Number of courses:", listOfCourses?.length || 0);
+  
   function calculateTotalStudentsAndProfit() {
     const { totalStudents, totalProfit, studentList } = listOfCourses.reduce(
       (acc, course) => {

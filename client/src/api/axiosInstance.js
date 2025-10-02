@@ -7,9 +7,13 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
   (config) => {
     const accessToken = JSON.parse(sessionStorage.getItem("accessToken")) || "";
+    console.log("Access token from sessionStorage:", accessToken);
 
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
+      console.log("Added Authorization header:", config.headers.Authorization);
+    } else {
+      console.warn("No access token found in sessionStorage");
     }
 
     return config;
