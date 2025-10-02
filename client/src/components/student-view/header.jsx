@@ -17,9 +17,9 @@ function StudentViewCommonHeader() {
     <header className="flex items-center justify-between p-4 border-b relative">
       <div className="flex items-center space-x-4">
         <Link to="/home" className="flex items-center hover:text-black">
-          <GraduationCap className="h-8 w-8 mr-4 " />
+          <GraduationCap className="h-8 w-8 mr-4 text-blue-700 " />
           <span className="font-extrabold md:text-xl text-[14px]">
-            LMS LEARN
+             JIX LMS
           </span>
         </Link>
         <div className="flex items-center space-x-1">
@@ -45,7 +45,7 @@ function StudentViewCommonHeader() {
             <span className="font-extrabold md:text-xl text-[14px]">
               My Courses
             </span>
-            <TvMinimalPlay className="w-8 h-8 cursor-pointer" />
+            <TvMinimalPlay className="w-8 h-8 text-red-500 cursor-pointer" />
           </div>
           <Button onClick={handleLogout}>Sign Out</Button>
         </div>
