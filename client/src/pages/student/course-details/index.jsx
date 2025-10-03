@@ -13,8 +13,8 @@ import VideoPlayer from "@/components/video-player";
 import { AuthContext } from "@/context/auth-context";
 import { StudentContext } from "@/context/student-context";
 import {
-  checkCoursePurchaseInfoService,
   createPaymentService,
+  createFreeOrderService,
   fetchStudentViewCourseDetailsService,
 } from "@/services";
 import { CheckCircle, Globe, Lock, PlayCircle } from "lucide-react";
@@ -36,7 +36,6 @@ function StudentViewCourseDetailsPage() {
   const [displayCurrentVideoFreePreview, setDisplayCurrentVideoFreePreview] =
     useState(null);
   const [showFreePreviewDialog, setShowFreePreviewDialog] = useState(false);
-  const [approvalUrl, setApprovalUrl] = useState("");
   const navigate = useNavigate();
   const { id } = useParams();
   const location = useLocation();
@@ -75,33 +74,93 @@ function StudentViewCourseDetailsPage() {
   }
 
   async function handleCreatePayment() {
-    const paymentPayload = {
-      userId: auth?.user?._id,
-      userName: auth?.user?.userName,
-      userEmail: auth?.user?.userEmail,
-      orderStatus: "pending",
-      paymentMethod: "paypal",
-      paymentStatus: "initiated",
-      orderDate: new Date(),
-      paymentId: "",
-      payerId: "",
-      instructorId: studentViewCourseDetails?.instructorId,
-      instructorName: studentViewCourseDetails?.instructorName,
-      courseImage: studentViewCourseDetails?.image,
-      courseTitle: studentViewCourseDetails?.title,
-      courseId: studentViewCourseDetails?._id,
-      coursePricing: studentViewCourseDetails?.pricing,
-    };
+    try {
+      // Check if user is authenticated
+      if (!auth?.user?._id) {
+        alert("Please login to purchase courses");
+        navigate("/auth");
+        return;
+      }
 
-    console.log(paymentPayload, "paymentPayload");
-    const response = await createPaymentService(paymentPayload);
+      const paymentPayload = {
+        userId: auth?.user?._id,
+        userName: auth?.user?.userName,
+        userEmail: auth?.user?.userEmail,
+        instructorId: studentViewCourseDetails?.instructorId,
+        instructorName: studentViewCourseDetails?.instructorName,
+        courseImage: studentViewCourseDetails?.image,
+        courseTitle: studentViewCourseDetails?.title,
+        courseId: studentViewCourseDetails?._id,
+        coursePricing: studentViewCourseDetails?.pricing,
+      };
 
-    if (response.success) {
-      sessionStorage.setItem(
-        "currentOrderId",
-        JSON.stringify(response?.data?.orderId)
-      );
-      setApprovalUrl(response?.data?.approveUrl);
+      console.log("Creating fake payment with payload:", paymentPayload);
+      
+      const response = await createPaymentService(paymentPayload);
+      console.log("Fake payment service response:", response);
+
+      if (response?.success) {
+        sessionStorage.setItem(
+          "currentOrderId",
+          JSON.stringify(response?.data?.orderId)
+        );
+        
+        // Show success message and redirect to course
+        alert("Payment Successful! 🎉\nYou have successfully enrolled in the course!");
+        navigate(`/course-progress/${studentViewCourseDetails?._id}`);
+      } else {
+        console.error("Payment creation failed:", response);
+        alert(response?.message || "Payment creation failed. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error creating payment:", error);
+      alert("Payment system error. Please try again later.");
+    }
+  }
+
+  // Free purchase function for testing
+  async function handleFreePurchase() {
+    try {
+      // Check if user is authenticated
+      if (!auth?.user?._id) {
+        alert("Please login to get courses");
+        navigate("/auth");
+        return;
+      }
+
+      const freeOrderPayload = {
+        userId: auth?.user?._id,
+        userName: auth?.user?.userName,
+        userEmail: auth?.user?.userEmail,
+        orderStatus: "confirmed",
+        paymentMethod: "free",
+        paymentStatus: "paid",
+        orderDate: new Date(),
+        paymentId: "FREE_" + Date.now(),
+        payerId: "FREE_USER",
+        instructorId: studentViewCourseDetails?.instructorId,
+        instructorName: studentViewCourseDetails?.instructorName,
+        courseImage: studentViewCourseDetails?.image,
+        courseTitle: studentViewCourseDetails?.title,
+        courseId: studentViewCourseDetails?._id,
+        coursePricing: "0",
+      };
+
+      console.log("Creating free enrollment:", freeOrderPayload);
+      
+      const response = await createFreeOrderService(freeOrderPayload);
+      console.log("Free enrollment response:", response);
+
+      if (response?.success) {
+        alert("Course enrolled successfully! (Free testing mode)");
+        navigate(`/course-progress/${studentViewCourseDetails?._id}`);
+      } else {
+        alert(response?.message || "Free enrollment failed. Please try again.");
+      }
+      
+    } catch (error) {
+      console.error("Error with free enrollment:", error);
+      alert("Enrollment failed. Please try again.");
     }
   }
 
@@ -118,17 +177,13 @@ function StudentViewCourseDetailsPage() {
   }, [id]);
 
   useEffect(() => {
-    if (!location.pathname.includes("course/details"))
-      setStudentViewCourseDetails(null),
-        setCurrentCourseDetailsId(null),
-        setCoursePurchaseId(null);
+    if (!location.pathname.includes("course/details")) {
+      setStudentViewCourseDetails(null);
+      setCurrentCourseDetailsId(null);
+    }
   }, [location.pathname]);
 
   if (loadingState) return <Skeleton />;
-
-  if (approvalUrl !== "") {
-    window.location.href = approvalUrl;
-  }
 
   const getIndexOfFreePreviewUrl =
     studentViewCourseDetails !== null
@@ -163,7 +218,7 @@ function StudentViewCourseDetailsPage() {
         <main className="flex-grow">
           <Card className="mb-8">
             <CardHeader>
-              <CardTitle>What you'll learn</CardTitle>
+              <CardTitle>What you&apos;ll learn</CardTitle>
             </CardHeader>
             <CardContent>
               <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -192,6 +247,7 @@ function StudentViewCourseDetailsPage() {
               {studentViewCourseDetails?.curriculum?.map(
                 (curriculumItem, index) => (
                   <li
+                    key={index}
                     className={`${
                       curriculumItem?.freePreview
                         ? "cursor-pointer"
@@ -236,9 +292,18 @@ function StudentViewCourseDetailsPage() {
                   ₹{studentViewCourseDetails?.pricing}
                 </span>
               </div>
-              <Button onClick={handleCreatePayment} className="w-full">
-                Buy Now
-              </Button>
+              <div className="space-y-2">
+                <Button onClick={handleCreatePayment} className="w-full">
+                  Buy Now (Instant Payment)
+                </Button>
+                <Button 
+                  onClick={handleFreePurchase} 
+                  variant="outline" 
+                  className="w-full"
+                >
+                  Get Course (Free - Testing)
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </aside>
@@ -264,8 +329,9 @@ function StudentViewCourseDetailsPage() {
           <div className="flex flex-col gap-2">
             {studentViewCourseDetails?.curriculum
               ?.filter((item) => item.freePreview)
-              .map((filteredItem) => (
+              .map((filteredItem, index) => (
                 <p
+                  key={index}
                   onClick={() => handleSetFreePreview(filteredItem)}
                   className="cursor-pointer text-[16px] font-medium"
                 >
